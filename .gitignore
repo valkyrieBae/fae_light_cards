@@ -14,6 +14,7 @@ references/
 # Local agent notes and helper scripts
 AGENTS.md
 AGENTS.local.md
+ARCHITECTURE.md
 publish-test-repo.sh
 publish-test-repo.local.sh
 *.local.md
