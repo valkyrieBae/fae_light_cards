@@ -12,7 +12,11 @@ This is an unofficial Dalamud plugin targeting Dalamud API level 15. It is inten
 
 ### Install Through Dalamud
 
-Once a custom plugin repository URL is published for this project:
+Use this custom plugin repository URL:
+
+```text
+https://raw.githubusercontent.com/valkyrieBae/fae_light_cards/main/repo.json
+```
 
 1. Open Dalamud's plugin installer in-game with `/xlplugins`.
 2. Open the installer settings.
@@ -21,32 +25,7 @@ Once a custom plugin repository URL is published for this project:
 5. Search for `Fae Light Cards` and install it.
 6. Open the plugin with `/faecards`.
 
-Use the custom repository URL exactly as published. It should be a raw JSON URL, not the normal GitHub page URL.
-
-### Local Development Install
-
-Build the project and load the resulting plugin through Dalamud's local development plugin flow:
-
-```bash
-dotnet build FaeLightCards.csproj
-```
-
-For release packaging, build Release from a clean output directory:
-
-```bash
-dotnet clean FaeLightCards.csproj -c Release
-dotnet build FaeLightCards.csproj -c Release
-```
-
-If `bin/Release` contains old plugin files, remove the stale output before building so the generated ZIP only contains the current plugin files.
-
-DalamudPackager writes the install ZIP to:
-
-```text
-bin/Release/FaeLightCards/latest.zip
-```
-
-Use that ZIP as the downloadable artifact for a custom repository entry or GitHub release.
+Use the custom repository URL exactly as shown. It is a raw JSON URL, not the normal GitHub page URL.
 
 ## How To Play
 
@@ -122,77 +101,3 @@ cards/
 ```
 
 The plugin validates custom deck folders from the settings window.
-
-## Publishing For Dalamud From GitHub
-
-Dalamud custom plugin repositories use a JSON file that is reachable by unauthenticated HTTP `GET`. That JSON file contains an array of plugin store entries. The store entry points Dalamud at a ZIP artifact to install or update.
-
-For GitHub, the repository URL users add should usually look like this:
-
-```text
-https://raw.githubusercontent.com/<owner>/<repo>/<branch>/repo.json
-```
-
-Do not give users this kind of URL as the Dalamud repository URL:
-
-```text
-https://github.com/<owner>/<repo>/blob/<branch>/repo.json
-```
-
-That is a GitHub HTML page, not the raw JSON file Dalamud needs.
-
-Recommended release flow:
-
-1. Build a clean Release package.
-2. Upload `bin/Release/FaeLightCards/latest.zip` to a GitHub Release, using a clear asset name such as `FaeLightCards.zip`.
-3. Add or update `repo.json` in the GitHub repository.
-4. Set `DownloadLinkInstall`, `DownloadLinkUpdate`, and optionally `DownloadLinkTesting` to the direct ZIP download URL.
-5. Tell users to add the raw `repo.json` URL to Dalamud.
-
-Example `repo.json`:
-
-```json
-[
-  {
-    "Author": "Valkyrie Bae",
-    "Name": "Fae Light Cards",
-    "Punchline": "A tabletop card game plugin for FFXIV.",
-    "Description": "Play a social tabletop card game directly in FFXIV with local NPCs or networked rooms.",
-    "InternalName": "FaeLightCards",
-    "AssemblyVersion": "1.0.0.11",
-    "RepoUrl": "https://github.com/<owner>/<repo>",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/<owner>/<repo>/releases/download/v1.0.0.11/FaeLightCards.zip",
-    "DownloadLinkUpdate": "https://github.com/<owner>/<repo>/releases/download/v1.0.0.11/FaeLightCards.zip",
-    "DownloadLinkTesting": "https://github.com/<owner>/<repo>/releases/download/v1.0.0.11/FaeLightCards.zip",
-    "LastUpdate": 1781764619
-  }
-]
-```
-
-Replace the placeholder owner, repository, version, ZIP URL, and `LastUpdate` value for each release. `LastUpdate` is a Unix timestamp.
-
-For official mainline Dalamud distribution, the current Dalamud docs direct new plugins through a pull request to `DalamudPluginsD17`, initially under the testing track. That path uses a `manifest.toml` pointing at a public repository and commit instead of asking users to add a custom repository URL.
-
-References:
-
-- Dalamud custom repository docs: https://dalamud.dev/plugin-publishing/custom-repositories
-- Dalamud submission process: https://dalamud.dev/plugin-publishing/submission
-- Dalamud plugin metadata docs: https://dalamud.dev/plugin-development/plugin-metadata
-
-## Build
-
-```bash
-dotnet build FaeLightCards.csproj --no-restore
-dotnet build FaeLightCards.csproj -c Release --no-restore
-```
-
-## Repository Notes
-
-- `bin/`, `obj/`, local reference checkouts, and local publish helpers are ignored.
-- Bundled card decks live under `decks/`.
-- Bundled sound effects live under `sounds/`.
-- The hardcoded default remote server address is configured in `Models/Configuration.cs`.
