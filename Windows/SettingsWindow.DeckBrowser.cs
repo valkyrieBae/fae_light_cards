@@ -1,9 +1,6 @@
 using System;
 using System.Numerics;
 using System.Linq;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 
@@ -133,8 +130,13 @@ namespace FaeLightCards
         }
         private void OpenDeckFolderBrowser()
         {
-            deckFolderBrowserPath = GetInitialDeckBrowserPath();
-            deckFolderBrowserError = string.Empty;
+            deckFolderBrowser.Open(new[]
+            {
+                deckFolderPathInput,
+                plugin.CardDeckService.GetSelectedCustomDeck()?.FolderPath ?? string.Empty,
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                Plugin.PluginInterface.AssemblyLocation.DirectoryName ?? string.Empty
+            });
             shouldOpenDeckFolderBrowser = true;
             shouldFocusDeckFolderBrowserPath = true;
         }
@@ -163,9 +165,9 @@ namespace FaeLightCards
             }
 
             ImGui.SetNextItemWidth(-1);
-            if (ImGui.InputText("##deckFolderBrowserPath", ref deckFolderBrowserPath, 512, ImGuiInputTextFlags.EnterReturnsTrue))
+            if (ImGui.InputText("##deckFolderBrowserPath", ref deckFolderBrowser.CurrentPath, 512, ImGuiInputTextFlags.EnterReturnsTrue))
             {
-                NavigateDeckFolderBrowser(deckFolderBrowserPath);
+                deckFolderBrowser.Navigate(deckFolderBrowser.CurrentPath);
             }
 
             ImGui.Spacing();
@@ -178,14 +180,14 @@ namespace FaeLightCards
                 ImGui.EndChild();
             }
 
-            if (!string.IsNullOrWhiteSpace(deckFolderBrowserError))
+            if (!string.IsNullOrWhiteSpace(deckFolderBrowser.ErrorMessage))
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.35f, 0.35f, 1.0f));
-                ImGui.TextWrapped(deckFolderBrowserError);
+                ImGui.TextWrapped(deckFolderBrowser.ErrorMessage);
                 ImGui.PopStyleColor();
             }
 
-            bool canUseCurrentFolder = TryGetExistingDeckFolderPath(deckFolderBrowserPath, out string selectedFolderPath);
+            bool canUseCurrentFolder = deckFolderBrowser.TryGetCurrentFolder(out string selectedFolderPath);
             if (!canUseCurrentFolder)
             {
                 ImGui.BeginDisabled();
@@ -194,8 +196,7 @@ namespace FaeLightCards
             if (ImGui.Button("Use This Folder"))
             {
                 deckFolderPathInput = selectedFolderPath;
-                deckFolderBrowserPath = selectedFolderPath;
-                deckFolderBrowserError = string.Empty;
+                deckFolderBrowser.SetCurrentFolder(selectedFolderPath);
                 ImGui.CloseCurrentPopup();
             }
 
@@ -215,30 +216,30 @@ namespace FaeLightCards
         private void DrawDeckFolderBrowserShortcuts()
         {
             string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (!string.IsNullOrWhiteSpace(home) && Directory.Exists(home))
+            if (DeckFolderBrowserModel.IsExistingDirectory(home))
             {
                 if (ImGui.Button("Home"))
                 {
-                    NavigateDeckFolderBrowser(home);
+                    deckFolderBrowser.Navigate(home);
                 }
                 ImGui.SameLine();
             }
 
-            string? parent = GetParentDirectory(deckFolderBrowserPath);
+            string? parent = deckFolderBrowser.GetParentDirectory();
             if (!string.IsNullOrWhiteSpace(parent))
             {
                 if (ImGui.Button("Parent"))
                 {
-                    NavigateDeckFolderBrowser(parent);
+                    deckFolderBrowser.Navigate(parent);
                 }
                 ImGui.SameLine();
             }
 
-            foreach (string root in GetRootDirectories())
+            foreach (string root in DeckFolderBrowserModel.GetRootDirectories())
             {
                 if (ImGui.Button($"{root}##deckRoot{root}"))
                 {
-                    NavigateDeckFolderBrowser(root);
+                    deckFolderBrowser.Navigate(root);
                 }
                 ImGui.SameLine();
             }
@@ -247,199 +248,20 @@ namespace FaeLightCards
         }
         private void DrawDeckFolderBrowserDirectoryList()
         {
-            string currentPath;
-            try
+            var snapshot = deckFolderBrowser.GetCurrentDirectorySnapshot();
+            if (!string.IsNullOrWhiteSpace(snapshot.ParentPath) && ImGui.Selectable(".."))
             {
-                currentPath = ExpandDeckBrowserPath(deckFolderBrowserPath);
-            }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-            {
-                deckFolderBrowserError = ex.Message;
+                deckFolderBrowser.Navigate(snapshot.ParentPath);
                 return;
             }
 
-            if (!Directory.Exists(currentPath))
+            foreach (var directory in snapshot.Directories)
             {
-                deckFolderBrowserError = "Folder does not exist.";
-                return;
-            }
-
-            try
-            {
-                deckFolderBrowserPath = currentPath;
-                deckFolderBrowserError = string.Empty;
-
-                string? parent = GetParentDirectory(currentPath);
-                if (!string.IsNullOrWhiteSpace(parent) && ImGui.Selectable(".."))
+                if (ImGui.Selectable($"{directory.Name}/##{directory.FullPath}"))
                 {
-                    NavigateDeckFolderBrowser(parent);
+                    deckFolderBrowser.Navigate(directory.FullPath);
                     return;
                 }
-
-                var directories = Directory.EnumerateDirectories(currentPath)
-                    .Select(path => new DirectoryInfo(path))
-                    .OrderBy(directory => directory.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                foreach (var directory in directories)
-                {
-                    string name = string.IsNullOrWhiteSpace(directory.Name) ? directory.FullName : directory.Name;
-                    if (ImGui.Selectable($"{name}/##{directory.FullName}"))
-                    {
-                        NavigateDeckFolderBrowser(directory.FullName);
-                        return;
-                    }
-                }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                deckFolderBrowserError = ex.Message;
-            }
-        }
-        private string GetInitialDeckBrowserPath()
-        {
-            string[] candidates =
-            {
-                deckFolderPathInput,
-                plugin.CardDeckService.GetSelectedCustomDeck()?.FolderPath ?? string.Empty,
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                Plugin.PluginInterface.AssemblyLocation.DirectoryName ?? string.Empty
-            };
-
-            foreach (string candidate in candidates)
-            {
-                string browsablePath = GetBrowsableDeckFolderPath(candidate);
-                if (!string.IsNullOrWhiteSpace(browsablePath))
-                {
-                    return browsablePath;
-                }
-            }
-
-            return RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? Path.GetPathRoot(Environment.CurrentDirectory) ?? Environment.CurrentDirectory
-                : Path.DirectorySeparatorChar.ToString();
-        }
-        private void NavigateDeckFolderBrowser(string path)
-        {
-            if (!TryGetExistingDeckFolderPath(path, out string browsablePath))
-            {
-                deckFolderBrowserError = "Folder does not exist.";
-                return;
-            }
-
-            deckFolderBrowserPath = browsablePath;
-            deckFolderBrowserError = string.Empty;
-        }
-        private static string GetBrowsableDeckFolderPath(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return string.Empty;
-            }
-
-            try
-            {
-                string expandedPath = ExpandDeckBrowserPath(path);
-                if (Directory.Exists(expandedPath))
-                {
-                    return expandedPath;
-                }
-
-                if (File.Exists(expandedPath))
-                {
-                    return Path.GetDirectoryName(expandedPath) ?? string.Empty;
-                }
-
-                string? parent = Path.GetDirectoryName(expandedPath);
-                while (!string.IsNullOrWhiteSpace(parent))
-                {
-                    if (Directory.Exists(parent))
-                    {
-                        return parent;
-                    }
-
-                    parent = Path.GetDirectoryName(parent);
-                }
-            }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-            {
-                return string.Empty;
-            }
-
-            return string.Empty;
-        }
-        private static bool TryGetExistingDeckFolderPath(string path, out string folderPath)
-        {
-            folderPath = string.Empty;
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return false;
-            }
-
-            try
-            {
-                string expandedPath = ExpandDeckBrowserPath(path);
-                if (!Directory.Exists(expandedPath))
-                {
-                    return false;
-                }
-
-                folderPath = expandedPath;
-                return true;
-            }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-            {
-                return false;
-            }
-        }
-        private static string ExpandDeckBrowserPath(string path)
-        {
-            string expandedPath = Environment.ExpandEnvironmentVariables(path.Trim().Trim('"').Trim('\''));
-            if (expandedPath == "~" || expandedPath.StartsWith("~/", StringComparison.Ordinal) || expandedPath.StartsWith("~\\", StringComparison.Ordinal))
-            {
-                string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                if (!string.IsNullOrWhiteSpace(home))
-                {
-                    expandedPath = expandedPath == "~"
-                        ? home
-                        : Path.Combine(home, expandedPath[2..]);
-                }
-            }
-
-            return Path.GetFullPath(expandedPath);
-        }
-        private static string? GetParentDirectory(string path)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(path))
-                {
-                    return null;
-                }
-
-                var directory = new DirectoryInfo(ExpandDeckBrowserPath(path));
-                return directory.Parent?.FullName;
-            }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-            {
-                return null;
-            }
-        }
-        private static IReadOnlyList<string> GetRootDirectories()
-        {
-            try
-            {
-                return Directory.GetLogicalDrives()
-                    .Where(Directory.Exists)
-                    .OrderBy(root => root, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                string fallbackRoot = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                    ? Path.GetPathRoot(Environment.CurrentDirectory) ?? Environment.CurrentDirectory
-                    : Path.DirectorySeparatorChar.ToString();
-                return new[] { fallbackRoot };
             }
         }
         private void DrawDeckStatus()

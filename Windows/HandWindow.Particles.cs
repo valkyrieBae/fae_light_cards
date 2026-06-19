@@ -11,6 +11,12 @@ namespace FaeLightCards
 {
     public partial class HandWindow
     {
+        private enum CardParticleSpawnKind
+        {
+            Trail,
+            Splash
+        }
+
         private void UpdateAndDrawParticles()
         {
             float dt = ImGui.GetIO().DeltaTime;
@@ -61,23 +67,9 @@ namespace FaeLightCards
 
                 p.Rotation += p.RotationSpeed * dt;
 
-                float alpha = Math.Clamp(p.Life / p.MaxLife, 0f, 1f);
-                var drawColor = ImGui.ColorConvertFloat4ToU32(new Vector4(p.Color.X, p.Color.Y, p.Color.Z, p.Color.W * alpha));
-
                 if (!p.DrawOnTop)
                 {
-                    if (p.ShapeType == 0) // Circle
-                    {
-                        drawList.AddCircleFilled(p.Position, p.Size, drawColor, 8);
-                    }
-                    else if (p.ShapeType == 1) // Sparkle
-                    {
-                        DrawSparkle(drawList, p.Position, p.Size, p.Rotation, drawColor);
-                    }
-                    else if (p.ShapeType == 2) // Square
-                    {
-                        DrawRotatedSquare(drawList, p.Position, p.Size, p.Rotation, drawColor);
-                    }
+                    DrawParticleShape(drawList, p, GetParticleDrawColor(p));
                 }
 
                 plugin.AnimationManager.Particles[i] = p;
@@ -91,21 +83,7 @@ namespace FaeLightCards
                 var p = plugin.AnimationManager.Particles[i];
                 if (p.DrawOnTop && p.Life > 0f)
                 {
-                    float alpha = Math.Clamp(p.Life / p.MaxLife, 0f, 1f);
-                    var drawColor = ImGui.ColorConvertFloat4ToU32(new Vector4(p.Color.X, p.Color.Y, p.Color.Z, p.Color.W * alpha));
-
-                    if (p.ShapeType == 0) // Circle
-                    {
-                        drawList.AddCircleFilled(p.Position, p.Size, drawColor, 8);
-                    }
-                    else if (p.ShapeType == 1) // Sparkle
-                    {
-                        DrawSparkle(drawList, p.Position, p.Size, p.Rotation, drawColor);
-                    }
-                    else if (p.ShapeType == 2) // Square
-                    {
-                        DrawRotatedSquare(drawList, p.Position, p.Size, p.Rotation, drawColor);
-                    }
+                    DrawParticleShape(drawList, p, GetParticleDrawColor(p));
                 }
             }
         }
@@ -143,39 +121,204 @@ namespace FaeLightCards
 
             drawList.AddQuadFilled(p1, p2, p3, p4, color);
         }
+
+        private static uint GetParticleDrawColor(Particle particle)
+        {
+            float alpha = Math.Clamp(particle.Life / particle.MaxLife, 0f, 1f);
+            return ImGui.ColorConvertFloat4ToU32(new Vector4(particle.Color.X, particle.Color.Y, particle.Color.Z, particle.Color.W * alpha));
+        }
+
+        private static void DrawParticleShape(ImDrawListPtr drawList, Particle particle, uint drawColor)
+        {
+            if (particle.ShapeType == 0) // Circle
+            {
+                drawList.AddCircleFilled(particle.Position, particle.Size, drawColor, 8);
+            }
+            else if (particle.ShapeType == 1) // Sparkle
+            {
+                DrawSparkle(drawList, particle.Position, particle.Size, particle.Rotation, drawColor);
+            }
+            else if (particle.ShapeType == 2) // Square
+            {
+                DrawRotatedSquare(drawList, particle.Position, particle.Size, particle.Rotation, drawColor);
+            }
+        }
+
+        private static CardParticleType GetActiveParticleType(CardParticleType configuredType)
+        {
+            return configuredType == CardParticleType.CardMatch ? CardParticleType.GoldSparkles : configuredType;
+        }
+
+        private Vector2 GetRandomCardPerimeterPoint(Vector2 cardPos, float cardWidth, float cardHeight)
+        {
+            int edge = random.Next(4);
+            float offset = random.NextSingle();
+
+            return edge switch
+            {
+                0 => new Vector2(cardPos.X + offset * cardWidth, cardPos.Y),
+                1 => new Vector2(cardPos.X + offset * cardWidth, cardPos.Y + cardHeight),
+                2 => new Vector2(cardPos.X, cardPos.Y + offset * cardHeight),
+                _ => new Vector2(cardPos.X + cardWidth, cardPos.Y + offset * cardHeight)
+            };
+        }
+
+        private Vector2 GetDirectionFromCenter(Vector2 position, Vector2 center, bool useRandomFallback)
+        {
+            Vector2 direction = position - center;
+            if (direction.LengthSquared() > 0.001f)
+            {
+                return Vector2.Normalize(direction);
+            }
+
+            if (!useRandomFallback)
+            {
+                return Vector2.Zero;
+            }
+
+            float angle = random.NextSingle() * MathF.PI * 2f;
+            return new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+        }
+
+        private void AddParticle(Particle particle)
+        {
+            particle.Life = particle.MaxLife;
+            plugin.AnimationManager.Particles.Add(particle);
+        }
+
+        private void ApplyCardParticleStyle(
+            ref Particle particle,
+            Card card,
+            CardParticleType configuredType,
+            CardParticleType activeType,
+            CardParticleSpawnKind spawnKind,
+            float scale,
+            float speed = 0f)
+        {
+            if (configuredType == CardParticleType.CardMatch)
+            {
+                ApplyCardMatchParticleStyle(ref particle, card, spawnKind);
+            }
+            else if (activeType == CardParticleType.GoldSparkles)
+            {
+                ApplyGoldParticleStyle(ref particle, spawnKind);
+            }
+            else if (activeType == CardParticleType.FireEmbers)
+            {
+                ApplyFireParticleStyle(ref particle, spawnKind);
+            }
+            else if (activeType == CardParticleType.NeonDigital)
+            {
+                ApplyNeonParticleStyle(ref particle, spawnKind, scale, speed);
+            }
+        }
+
+        private void ApplyCardMatchParticleStyle(ref Particle particle, Card card, CardParticleSpawnKind spawnKind)
+        {
+            bool isSplash = spawnKind == CardParticleSpawnKind.Splash;
+            particle.ShapeType = random.Next(10) < (isSplash ? 6 : 7) ? 1 : 0;
+
+            bool isRed = card.Suit == Suit.Hearts || card.Suit == Suit.Diamonds;
+            if (isRed)
+            {
+                float roll = random.NextSingle();
+                if (roll < 0.5f)
+                    particle.Color = new Vector4(1.0f, 0.15f, 0.15f, isSplash ? 1.0f : 0.8f + random.NextSingle() * 0.2f);
+                else if (roll < 0.8f)
+                    particle.Color = new Vector4(1.0f, 0.4f, 0.1f, isSplash ? 1.0f : 0.8f + random.NextSingle() * 0.2f);
+                else
+                    particle.Color = new Vector4(0.85f, 0.0f, 0.2f, isSplash ? 1.0f : 0.8f + random.NextSingle() * 0.2f);
+            }
+            else
+            {
+                float roll = random.NextSingle();
+                if (roll < 0.35f)
+                    particle.Color = new Vector4(0.2f, 0.2f, 0.2f, isSplash ? 1.0f : 0.8f + random.NextSingle() * 0.2f);
+                else if (roll < 0.7f)
+                    particle.Color = new Vector4(0.75f, 0.75f, 0.8f, isSplash ? 1.0f : 0.8f + random.NextSingle() * 0.2f);
+                else
+                    particle.Color = new Vector4(1.0f, 1.0f, 1.0f, isSplash ? 1.0f : 0.9f + random.NextSingle() * 0.1f);
+            }
+        }
+
+        private void ApplyGoldParticleStyle(ref Particle particle, CardParticleSpawnKind spawnKind)
+        {
+            bool isSplash = spawnKind == CardParticleSpawnKind.Splash;
+            particle.ShapeType = random.Next(10) < (isSplash ? 6 : 7) ? 1 : 0;
+            particle.Color = new Vector4(1.0f, 0.84f, 0.0f, isSplash ? 1.0f : 0.8f + random.NextSingle() * 0.2f);
+        }
+
+        private void ApplyFireParticleStyle(ref Particle particle, CardParticleSpawnKind spawnKind)
+        {
+            bool isSplash = spawnKind == CardParticleSpawnKind.Splash;
+            particle.ShapeType = 0;
+
+            float colorRoll = random.NextSingle();
+            if (isSplash)
+            {
+                if (colorRoll < 0.4f)
+                    particle.Color = new Vector4(1.0f, 0.2f, 0.0f, 1.0f);
+                else if (colorRoll < 0.7f)
+                    particle.Color = new Vector4(1.0f, 0.5f, 0.0f, 1.0f);
+                else
+                    particle.Color = new Vector4(1.0f, 0.9f, 0.1f, 1.0f);
+            }
+            else
+            {
+                if (colorRoll < 0.5f)
+                    particle.Color = new Vector4(1.0f, 0.27f, 0.0f, 0.9f);
+                else if (colorRoll < 0.8f)
+                    particle.Color = new Vector4(1.0f, 0.65f, 0.0f, 0.9f);
+                else
+                    particle.Color = new Vector4(1.0f, 1.0f, 0.0f, 0.9f);
+            }
+        }
+
+        private void ApplyNeonParticleStyle(ref Particle particle, CardParticleSpawnKind spawnKind, float scale, float speed)
+        {
+            bool isSplash = spawnKind == CardParticleSpawnKind.Splash;
+            particle.ShapeType = 2;
+
+            if (isSplash && random.Next(10) < 4)
+            {
+                float gridAngle = random.Next(8) * MathF.PI / 4f;
+                particle.Velocity = new Vector2(MathF.Cos(gridAngle), MathF.Sin(gridAngle)) * speed * scale;
+            }
+
+            if (isSplash)
+            {
+                particle.Color = random.Next(2) == 0
+                    ? new Vector4(0.0f, 1.0f, 0.9f, 1.0f)
+                    : new Vector4(0.0f, 1.0f, 0.2f, 1.0f);
+                particle.Size = (11f + random.NextSingle() * 16f) * scale;
+            }
+            else
+            {
+                particle.Color = random.Next(2) == 0
+                    ? new Vector4(0.0f, 1.0f, 0.8f, 0.9f)
+                    : new Vector4(0.0f, 1.0f, 0.3f, 0.9f);
+                particle.Size = (9f + random.NextSingle() * 12f) * scale;
+            }
+        }
+
         private void SpawnTrailParticles(Card card, Vector2 cardPos, float cardWidth, float cardHeight, float scale)
         {
             var type = plugin.Configuration.ParticleType;
             if (type == CardParticleType.None) return;
 
-            var activeType = type;
-            if (type == CardParticleType.CardMatch)
-            {
-                activeType = CardParticleType.GoldSparkles;
-            }
+            var activeType = GetActiveParticleType(type);
+            Vector2 cardCenter = cardPos + new Vector2(cardWidth / 2f, cardHeight / 2f);
 
             int count = random.Next(1, 4);
             for (int i = 0; i < count; i++)
             {
-                // Choose a random position along the perimeter of the card
-                Vector2 spawnPos;
-                int edge = random.Next(4);
-                float offset = random.NextSingle();
-                if (edge == 0) // Top
-                    spawnPos = new Vector2(cardPos.X + offset * cardWidth, cardPos.Y);
-                else if (edge == 1) // Bottom
-                    spawnPos = new Vector2(cardPos.X + offset * cardWidth, cardPos.Y + cardHeight);
-                else if (edge == 2) // Left
-                    spawnPos = new Vector2(cardPos.X, cardPos.Y + offset * cardHeight);
-                else // Right
-                    spawnPos = new Vector2(cardPos.X + cardWidth, cardPos.Y + offset * cardHeight);
+                Vector2 spawnPos = GetRandomCardPerimeterPoint(cardPos, cardWidth, cardHeight);
 
                 // Add a small outward puff offset to make them look more natural and "around" the card
-                Vector2 center = cardPos + new Vector2(cardWidth / 2f, cardHeight / 2f);
-                Vector2 dirFromCenter = spawnPos - center;
+                Vector2 dirFromCenter = GetDirectionFromCenter(spawnPos, cardCenter, useRandomFallback: false);
                 if (dirFromCenter.LengthSquared() > 0.001f)
                 {
-                    spawnPos += Vector2.Normalize(dirFromCenter) * (random.NextSingle() * 12f - 4f) * scale;
+                    spawnPos += dirFromCenter * (random.NextSingle() * 12f - 4f) * scale;
                 }
 
                 var p = new Particle
@@ -187,59 +330,9 @@ namespace FaeLightCards
                     Rotation = random.NextSingle() * MathF.PI * 2f,
                     RotationSpeed = random.NextSingle() * 4f - 2f
                 };
-                p.Life = p.MaxLife;
 
-                if (type == CardParticleType.CardMatch)
-                {
-                    p.ShapeType = random.Next(10) < 7 ? 1 : 0;
-                    bool isRed = (card.Suit == Suit.Hearts || card.Suit == Suit.Diamonds);
-                    if (isRed)
-                    {
-                        float roll = random.NextSingle();
-                        if (roll < 0.5f)
-                            p.Color = new Vector4(1.0f, 0.15f, 0.15f, 0.8f + random.NextSingle() * 0.2f);
-                        else if (roll < 0.8f)
-                            p.Color = new Vector4(1.0f, 0.4f, 0.1f, 0.8f + random.NextSingle() * 0.2f);
-                        else
-                            p.Color = new Vector4(0.85f, 0.0f, 0.2f, 0.8f + random.NextSingle() * 0.2f);
-                    }
-                    else
-                    {
-                        float roll = random.NextSingle();
-                        if (roll < 0.35f)
-                            p.Color = new Vector4(0.2f, 0.2f, 0.2f, 0.8f + random.NextSingle() * 0.2f);
-                        else if (roll < 0.7f)
-                            p.Color = new Vector4(0.75f, 0.75f, 0.8f, 0.8f + random.NextSingle() * 0.2f);
-                        else
-                            p.Color = new Vector4(1.0f, 1.0f, 1.0f, 0.9f + random.NextSingle() * 0.1f);
-                    }
-                }
-                else if (activeType == CardParticleType.GoldSparkles)
-                {
-                    p.ShapeType = random.Next(10) < 7 ? 1 : 0;
-                    p.Color = new Vector4(1.0f, 0.84f, 0.0f, 0.8f + random.NextSingle() * 0.2f);
-                }
-                else if (activeType == CardParticleType.FireEmbers)
-                {
-                    p.ShapeType = 0;
-                    float colorRoll = random.NextSingle();
-                    if (colorRoll < 0.5f)
-                        p.Color = new Vector4(1.0f, 0.27f, 0.0f, 0.9f);
-                    else if (colorRoll < 0.8f)
-                        p.Color = new Vector4(1.0f, 0.65f, 0.0f, 0.9f);
-                    else
-                        p.Color = new Vector4(1.0f, 1.0f, 0.0f, 0.9f);
-                }
-                else if (activeType == CardParticleType.NeonDigital)
-                {
-                    p.ShapeType = 2;
-                    p.Color = random.Next(2) == 0
-                        ? new Vector4(0.0f, 1.0f, 0.8f, 0.9f)
-                        : new Vector4(0.0f, 1.0f, 0.3f, 0.9f);
-                    p.Size = (9f + random.NextSingle() * 12f) * scale;
-                }
-
-                plugin.AnimationManager.Particles.Add(p);
+                ApplyCardParticleStyle(ref p, card, type, activeType, CardParticleSpawnKind.Trail, scale);
+                AddParticle(p);
             }
         }
         public void SpawnButtonFeedbackParticles(Vector2 center, Vector2 buttonSize, float scale)
@@ -272,8 +365,7 @@ namespace FaeLightCards
                     IsFirework = false,
                     DrawOnTop = true
                 };
-                p.Life = p.MaxLife;
-                plugin.AnimationManager.Particles.Add(p);
+                AddParticle(p);
             }
         }
         private void SpawnSplashParticles(Card card, Vector2 cardPos, float cardWidth, float cardHeight, float scale)
@@ -281,41 +373,17 @@ namespace FaeLightCards
             var type = plugin.Configuration.ParticleType;
             if (type == CardParticleType.None) return;
 
-            var activeType = type;
-            if (type == CardParticleType.CardMatch)
-            {
-                activeType = CardParticleType.GoldSparkles;
-            }
+            var activeType = GetActiveParticleType(type);
 
             int count = activeType == CardParticleType.NeonDigital ? 40 : 60;
             Vector2 cardCenter = cardPos + new Vector2(cardWidth / 2f, cardHeight / 2f);
 
             for (int i = 0; i < count; i++)
             {
-                // Choose a random position along the perimeter of the card
-                Vector2 spawnPos;
-                int edge = random.Next(4);
-                float offset = random.NextSingle();
-                if (edge == 0) // Top
-                    spawnPos = new Vector2(cardPos.X + offset * cardWidth, cardPos.Y);
-                else if (edge == 1) // Bottom
-                    spawnPos = new Vector2(cardPos.X + offset * cardWidth, cardPos.Y + cardHeight);
-                else if (edge == 2) // Left
-                    spawnPos = new Vector2(cardPos.X, cardPos.Y + offset * cardHeight);
-                else // Right
-                    spawnPos = new Vector2(cardPos.X + cardWidth, cardPos.Y + offset * cardHeight);
+                Vector2 spawnPos = GetRandomCardPerimeterPoint(cardPos, cardWidth, cardHeight);
 
                 // Add a small outward/inward random offset around the perimeter
-                Vector2 dirFromCenter = spawnPos - cardCenter;
-                if (dirFromCenter.LengthSquared() > 0.001f)
-                {
-                    dirFromCenter = Vector2.Normalize(dirFromCenter);
-                }
-                else
-                {
-                    float angle = random.NextSingle() * MathF.PI * 2f;
-                    dirFromCenter = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
-                }
+                Vector2 dirFromCenter = GetDirectionFromCenter(spawnPos, cardCenter, useRandomFallback: true);
 
                 spawnPos += dirFromCenter * (random.NextSingle() * 15f - 5f) * scale;
 
@@ -339,64 +407,9 @@ namespace FaeLightCards
                     Rotation = random.NextSingle() * MathF.PI * 2f,
                     RotationSpeed = random.NextSingle() * 8f - 4f
                 };
-                p.Life = p.MaxLife;
 
-                if (type == CardParticleType.CardMatch)
-                {
-                    p.ShapeType = random.Next(10) < 6 ? 1 : 0;
-                    bool isRed = (card.Suit == Suit.Hearts || card.Suit == Suit.Diamonds);
-                    if (isRed)
-                    {
-                        float roll = random.NextSingle();
-                        if (roll < 0.5f)
-                            p.Color = new Vector4(1.0f, 0.15f, 0.15f, 1.0f);
-                        else if (roll < 0.8f)
-                            p.Color = new Vector4(1.0f, 0.4f, 0.1f, 1.0f);
-                        else
-                            p.Color = new Vector4(0.85f, 0.0f, 0.2f, 1.0f);
-                    }
-                    else
-                    {
-                        float roll = random.NextSingle();
-                        if (roll < 0.35f)
-                            p.Color = new Vector4(0.2f, 0.2f, 0.2f, 1.0f);
-                        else if (roll < 0.7f)
-                            p.Color = new Vector4(0.75f, 0.75f, 0.8f, 1.0f);
-                        else
-                            p.Color = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-                    }
-                }
-                else if (activeType == CardParticleType.GoldSparkles)
-                {
-                    p.ShapeType = random.Next(10) < 6 ? 1 : 0;
-                    p.Color = new Vector4(1.0f, 0.84f, 0.0f, 1.0f);
-                }
-                else if (activeType == CardParticleType.FireEmbers)
-                {
-                    p.ShapeType = 0;
-                    float colorRoll = random.NextSingle();
-                    if (colorRoll < 0.4f)
-                        p.Color = new Vector4(1.0f, 0.2f, 0.0f, 1.0f);
-                    else if (colorRoll < 0.7f)
-                        p.Color = new Vector4(1.0f, 0.5f, 0.0f, 1.0f);
-                    else
-                        p.Color = new Vector4(1.0f, 0.9f, 0.1f, 1.0f);
-                }
-                else if (activeType == CardParticleType.NeonDigital)
-                {
-                    p.ShapeType = 2;
-                    if (random.Next(10) < 4)
-                    {
-                        float gridAngle = (random.Next(8) * MathF.PI / 4f);
-                        p.Velocity = new Vector2(MathF.Cos(gridAngle), MathF.Sin(gridAngle)) * speed * scale;
-                    }
-                    p.Color = random.Next(2) == 0
-                        ? new Vector4(0.0f, 1.0f, 0.9f, 1.0f)
-                        : new Vector4(0.0f, 1.0f, 0.2f, 1.0f);
-                    p.Size = (11f + random.NextSingle() * 16f) * scale;
-                }
-
-                plugin.AnimationManager.Particles.Add(p);
+                ApplyCardParticleStyle(ref p, card, type, activeType, CardParticleSpawnKind.Splash, scale, speed);
+                AddParticle(p);
             }
         }
         private Vector4 ConvertHueToRgba(float hue, float opacity)

@@ -52,18 +52,8 @@ namespace FaeLightCards
 
         public IReadOnlyList<GuessOption> Options { get; } = new List<GuessOption>
         {
-            new GuessOption("Red", new ButtonTheme(
-                new Vector4(0.85f, 0.15f, 0.2f, 1.0f), // Red fill
-                new Vector4(0f, 0f, 0f, 1.0f),         // Black outline
-                new Vector4(1f, 1f, 1f, 1.0f),         // White text
-                new Vector4(0f, 0f, 0f, 1.0f)          // Black text outline
-            )),
-            new GuessOption("Black", new ButtonTheme(
-                new Vector4(0.08f, 0.08f, 0.1f, 1.0f), // Black fill
-                new Vector4(0.6f, 0.1f, 0.15f, 1.0f),  // Dark red outline
-                new Vector4(1f, 1f, 1f, 1.0f),         // White text
-                new Vector4(0.6f, 0.1f, 0.15f, 1.0f)   // Dark red text outline
-            ))
+            new GuessOption("Red", UITheme.Red),
+            new GuessOption("Black", UITheme.Black)
         };
 
         public bool EvaluateGuess(Card nextCard, int pickedOptionIndex, List<Card> currentHand)
@@ -81,18 +71,8 @@ namespace FaeLightCards
 
         public IReadOnlyList<GuessOption> Options { get; } = new List<GuessOption>
         {
-            new GuessOption("Higher", new ButtonTheme(
-                new Vector4(0.2f, 0.4f, 0.6f, 1.0f),   // Slate blue fill
-                new Vector4(0.1f, 0.2f, 0.3f, 1.0f),   // Dark blue outline
-                new Vector4(1f, 1f, 1f, 1.0f),         // White text
-                new Vector4(0.1f, 0.2f, 0.3f, 1.0f)    // Dark blue text outline
-            )),
-            new GuessOption("Lower", new ButtonTheme(
-                new Vector4(0.25f, 0.25f, 0.3f, 1.0f), // Charcoal fill
-                new Vector4(0.15f, 0.15f, 0.2f, 1.0f), // Dark charcoal outline
-                new Vector4(1f, 1f, 1f, 1.0f),         // White text
-                new Vector4(0.15f, 0.15f, 0.2f, 1.0f)  // Dark charcoal text outline
-            ))
+            new GuessOption("Higher", UITheme.Secondary),
+            new GuessOption("Lower", UITheme.Neutral)
         };
 
         public bool EvaluateGuess(Card nextCard, int pickedOptionIndex, List<Card> currentHand)
@@ -119,18 +99,8 @@ namespace FaeLightCards
 
         public IReadOnlyList<GuessOption> Options { get; } = new List<GuessOption>
         {
-            new GuessOption("Inside", new ButtonTheme(
-                new Vector4(0.2f, 0.5f, 0.4f, 1.0f),   // Slate green fill
-                new Vector4(0.1f, 0.3f, 0.2f, 1.0f),   // Dark green outline
-                new Vector4(1f, 1f, 1f, 1.0f),         // White text
-                new Vector4(0.1f, 0.3f, 0.2f, 1.0f)    // Dark green text outline
-            )),
-            new GuessOption("Outside", new ButtonTheme(
-                new Vector4(0.4f, 0.3f, 0.5f, 1.0f),   // Soft purple/violet fill
-                new Vector4(0.2f, 0.15f, 0.3f, 1.0f),  // Dark purple outline
-                new Vector4(1f, 1f, 1f, 1.0f),         // White text
-                new Vector4(0.2f, 0.15f, 0.3f, 1.0f)   // Dark purple text outline
-            ))
+            new GuessOption("Inside", UITheme.Inside),
+            new GuessOption("Outside", UITheme.Outside)
         };
 
         public bool EvaluateGuess(Card nextCard, int pickedOptionIndex, List<Card> currentHand)
@@ -165,30 +135,10 @@ namespace FaeLightCards
 
         public IReadOnlyList<GuessOption> Options { get; } = new List<GuessOption>
         {
-            new GuessOption("♣", new ButtonTheme(
-                new Vector4(0.12f, 0.12f, 0.14f, 1.0f), // Clubs charcoal fill
-                new Vector4(0.4f, 0.4f, 0.4f, 1.0f),   // Medium gray outline
-                new Vector4(0.85f, 0.85f, 0.85f, 1.0f),// Off-white text
-                new Vector4(0.2f, 0.2f, 0.2f, 1.0f)    // Dark text outline
-            )),
-            new GuessOption("♦", new ButtonTheme(
-                new Vector4(0.80f, 0.15f, 0.2f, 1.0f),  // Vibrant red fill
-                new Vector4(0.4f, 0.05f, 0.08f, 1.0f), // Dark red outline
-                new Vector4(1f, 1f, 1f, 1.0f),         // White text
-                new Vector4(0.4f, 0.05f, 0.08f, 1.0f)  // Dark red text outline
-            )),
-            new GuessOption("♥", new ButtonTheme(
-                new Vector4(0.80f, 0.15f, 0.2f, 1.0f),  // Vibrant red fill
-                new Vector4(0.4f, 0.05f, 0.08f, 1.0f), // Dark red outline
-                new Vector4(1f, 1f, 1f, 1.0f),         // White text
-                new Vector4(0.4f, 0.05f, 0.08f, 1.0f)  // Dark red text outline
-            )),
-            new GuessOption("♠", new ButtonTheme(
-                new Vector4(0.12f, 0.12f, 0.14f, 1.0f), // Spades charcoal fill
-                new Vector4(0.4f, 0.4f, 0.4f, 1.0f),   // Medium gray outline
-                new Vector4(0.85f, 0.85f, 0.85f, 1.0f),// Off-white text
-                new Vector4(0.2f, 0.2f, 0.2f, 1.0f)    // Dark text outline
-            ))
+            new GuessOption("♣", UITheme.SuitBlack),
+            new GuessOption("♦", UITheme.SuitRed),
+            new GuessOption("♥", UITheme.SuitRed),
+            new GuessOption("♠", UITheme.SuitBlack)
         };
 
         public bool EvaluateGuess(Card nextCard, int pickedOptionIndex, List<Card> currentHand)

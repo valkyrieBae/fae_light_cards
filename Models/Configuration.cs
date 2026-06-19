@@ -13,6 +13,7 @@ namespace FaeLightCards
         public const string NormalDeckDesignId = "normal";
         public const string DefaultDeckDesignId = FaeDeckDesignId;
         public const string LocalhostServerAddress = "ws://localhost:8080/ws";
+        // AWS-hosted network room server used by the Remote server option.
         public const string RemoteServerAddress = "ws://3.16.107.89:8080/ws";
 
         public int Version { get; set; } = 9;

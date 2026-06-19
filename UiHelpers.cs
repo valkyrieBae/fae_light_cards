@@ -6,6 +6,32 @@ namespace FaeLightCards
 {
     public static class UiLayout
     {
+        public enum TextOutlineMode
+        {
+            Diagonal,
+            EightWay
+        }
+
+        private static readonly Vector2[] DiagonalTextOutlineDirections =
+        {
+            new(-1f, -1f),
+            new(1f, -1f),
+            new(-1f, 1f),
+            new(1f, 1f)
+        };
+
+        private static readonly Vector2[] EightWayTextOutlineDirections =
+        {
+            new(-1f, -1f),
+            new(0f, -1f),
+            new(1f, -1f),
+            new(-1f, 0f),
+            new(1f, 0f),
+            new(-1f, 1f),
+            new(0f, 1f),
+            new(1f, 1f)
+        };
+
         public static float GetCenteredX(float elementWidth)
         {
             var viewport = ImGui.GetMainViewport();
@@ -22,7 +48,82 @@ namespace FaeLightCards
             return new Vector2(x, y);
         }
 
+        public static void DrawOutlinedText(
+            ImDrawListPtr drawList,
+            Vector2 pos,
+            string text,
+            Vector4 textColor,
+            Vector4 outlineColor,
+            float outlineThickness,
+            TextOutlineMode outlineMode = TextOutlineMode.EightWay)
+        {
+            DrawOutlinedText(
+                drawList,
+                pos,
+                text,
+                ImGui.ColorConvertFloat4ToU32(textColor),
+                ImGui.ColorConvertFloat4ToU32(outlineColor),
+                outlineThickness,
+                outlineMode);
+        }
+
+        public static void DrawOutlinedText(
+            ImDrawListPtr drawList,
+            Vector2 pos,
+            string text,
+            uint textColor,
+            uint outlineColor,
+            float outlineThickness,
+            TextOutlineMode outlineMode = TextOutlineMode.EightWay)
+        {
+            if (outlineThickness > 0.1f)
+            {
+                var directions = outlineMode == TextOutlineMode.Diagonal
+                    ? DiagonalTextOutlineDirections
+                    : EightWayTextOutlineDirections;
+
+                foreach (var direction in directions)
+                {
+                    drawList.AddText(pos + direction * outlineThickness, outlineColor, text);
+                }
+            }
+
+            drawList.AddText(pos, textColor, text);
+        }
+
+        public static bool DrawCustomChoiceButton(
+            string label,
+            Vector2 size,
+            ButtonTheme theme,
+            float opacity,
+            float scale,
+            Action<Vector2, Vector2, float>? clickFeedback = null)
+        {
+            return DrawCustomChoiceButton(
+                label,
+                size,
+                theme.GetFill(opacity),
+                theme.GetOutline(opacity),
+                theme.GetText(opacity),
+                theme.GetTextOutline(opacity),
+                scale,
+                clickFeedback);
+        }
+
         public static bool DrawCustomChoiceButton(string label, Vector2 size, Vector4 fillCol, Vector4 outlineCol, Vector4 textCol, Vector4 textOutlineCol, float scale)
+        {
+            return DrawCustomChoiceButton(label, size, fillCol, outlineCol, textCol, textOutlineCol, scale, null);
+        }
+
+        private static bool DrawCustomChoiceButton(
+            string label,
+            Vector2 size,
+            Vector4 fillCol,
+            Vector4 outlineCol,
+            Vector4 textCol,
+            Vector4 textOutlineCol,
+            float scale,
+            Action<Vector2, Vector2, float>? clickFeedback)
         {
             var startPos = ImGui.GetCursorScreenPos();
 
@@ -34,20 +135,27 @@ namespace FaeLightCards
 
             ImGui.PopStyleColor(3);
 
+            if (clicked)
+            {
+                clickFeedback?.Invoke(startPos, size, scale);
+            }
+
+            bool pressed = ImGui.IsItemActive();
+            var drawStartPos = pressed ? startPos + new Vector2(1.5f * scale, 1.5f * scale) : startPos;
             var drawList = ImGui.GetWindowDrawList();
-            var endPos = startPos + size;
+            var drawEndPos = drawStartPos + size;
 
             // Fill background
-            drawList.AddRectFilled(startPos, endPos, ImGui.ColorConvertFloat4ToU32(fillCol), 6f * scale);
+            drawList.AddRectFilled(drawStartPos, drawEndPos, ImGui.ColorConvertFloat4ToU32(fillCol), 6f * scale);
 
             // Draw outline
-            drawList.AddRect(startPos, endPos, ImGui.ColorConvertFloat4ToU32(outlineCol), 6f * scale, ImDrawFlags.None, 2.5f * scale);
+            drawList.AddRect(drawStartPos, drawEndPos, ImGui.ColorConvertFloat4ToU32(outlineCol), 6f * scale, ImDrawFlags.None, 2.5f * scale);
 
             // Draw text centered and pixel-aligned
             var textSize = ImGui.CalcTextSize(label);
             var textPos = new Vector2(
-                MathF.Round(startPos.X + (size.X - textSize.X) * 0.5f),
-                MathF.Round(startPos.Y + (size.Y - textSize.Y) * 0.5f)
+                MathF.Round(drawStartPos.X + (size.X - textSize.X) * 0.5f),
+                MathF.Round(drawStartPos.Y + (size.Y - textSize.Y) * 0.5f - 1.0f * scale)
             );
 
             // Draw text outline
@@ -55,15 +163,7 @@ namespace FaeLightCards
             uint outlineU32 = ImGui.ColorConvertFloat4ToU32(textOutlineCol);
             uint textU32 = ImGui.ColorConvertFloat4ToU32(textCol);
 
-            for (float dx = -thickness; dx <= thickness; dx += thickness)
-            {
-                for (float dy = -thickness; dy <= thickness; dy += thickness)
-                {
-                    if (dx == 0 && dy == 0) continue;
-                    drawList.AddText(textPos + new Vector2(dx, dy), outlineU32, label);
-                }
-            }
-            drawList.AddText(textPos, textU32, label);
+            DrawOutlinedText(drawList, textPos, label, textU32, outlineU32, thickness);
 
             return clicked;
         }

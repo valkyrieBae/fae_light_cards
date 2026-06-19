@@ -2,8 +2,6 @@ using System;
 using System.Numerics;
 using System.Linq;
 using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 
@@ -24,8 +22,7 @@ namespace FaeLightCards
         private string deckStatusMessage = string.Empty;
         private string deckStatusDetails = string.Empty;
         private Vector4 deckStatusColor = new(0.6f, 0.6f, 0.6f, 1.0f);
-        private string deckFolderBrowserPath = string.Empty;
-        private string deckFolderBrowserError = string.Empty;
+        private readonly DeckFolderBrowserModel deckFolderBrowser = new();
         private bool shouldOpenDeckFolderBrowser;
         private bool shouldFocusDeckFolderBrowserPath;
         private readonly object connectionTestLock = new();

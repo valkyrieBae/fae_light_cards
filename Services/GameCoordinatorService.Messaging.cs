@@ -189,18 +189,5 @@ namespace FaeLightCards
                 plugin.EventBus.PublishPlaySound(plugin.Configuration.DrawSound);
             }
         }
-        private void UpdatePendingLogAnnouncements(float dt)
-        {
-            for (int i = plugin.TurnManager.PendingLogAnnouncements.Count - 1; i >= 0; i--)
-            {
-                var ann = plugin.TurnManager.PendingLogAnnouncements[i];
-                ann.DelayTimer -= dt;
-                if (ann.DelayTimer <= 0f)
-                {
-                    plugin.GameState.ActionLog.Add(ann.Message);
-                    plugin.TurnManager.PendingLogAnnouncements.RemoveAt(i);
-                }
-            }
-        }
     }
 }

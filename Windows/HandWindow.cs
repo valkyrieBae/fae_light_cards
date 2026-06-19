@@ -15,6 +15,12 @@ namespace FaeLightCards
         private readonly Dictionary<int, Vector2> slotPositions = new();
         private readonly Random random = new();
         private const float HandScaleSaveDebounceSeconds = 0.35f;
+        private const float HandRawPaddingX = 15f;
+        private const float HandRawPaddingY = 15f;
+        private const float HandRawSpacing = 10f;
+        private const int HandMaxCardsPerRow = 6;
+        private const float HandMinimumWindowSize = 50f;
+        private const float UnlockedResizeHandleHeight = 29f;
 
         private bool shouldResetPosition = false;
         private Vector2? dragTargetPosition = null;
@@ -66,6 +72,22 @@ namespace FaeLightCards
         public Vector2 LastSetWindowSize => lastSetWindowSize;
         public Vector2 LastSetWindowPosition { get; private set; }
 
+        private readonly record struct HandLayoutMetrics(
+            float Scale,
+            float BaseCardWidth,
+            float BaseCardHeight,
+            float CardWidth,
+            float CardHeight,
+            float Spacing,
+            int HandCount,
+            int Rows,
+            float WindowWidth,
+            float WindowHeight)
+        {
+            public Vector2 CardSize => new(CardWidth, CardHeight);
+            public Vector2 WindowSize => new(WindowWidth, WindowHeight);
+        }
+
         public void ResetPosition()
         {
             shouldResetPosition = true;
@@ -73,6 +95,60 @@ namespace FaeLightCards
             lastSetWindowSize = Vector2.Zero;
             lastWindowWidth = 0f;
             ClearAnimationsAndParticles();
+        }
+
+        private HandLayoutMetrics CreateCurrentHandLayoutMetrics(bool enforceMinimumWindowSize = false)
+        {
+            return CreateHandLayoutMetrics(HandCount, null, enforceMinimumWindowSize);
+        }
+
+        private HandLayoutMetrics CreateHandLayoutMetrics(int handCount, float? scaleOverride = null, bool enforceMinimumWindowSize = false)
+        {
+            float scale = scaleOverride ?? plugin.Configuration.HandScale;
+            var baseCardSize = GetHandBaseCardSize();
+            float cardWidth = baseCardSize.X * scale;
+            float cardHeight = baseCardSize.Y * scale;
+            float paddingX = HandRawPaddingX * scale;
+            float paddingY = HandRawPaddingY * scale;
+            float spacing = HandRawSpacing * scale;
+            int columns = Math.Min(handCount, HandMaxCardsPerRow);
+            if (columns == 0) columns = 1;
+
+            int rows = (handCount + HandMaxCardsPerRow - 1) / HandMaxCardsPerRow;
+            if (rows == 0) rows = 1;
+
+            float windowWidth = (cardWidth * columns) + (spacing * Math.Max(0, columns - 1)) + (paddingX * 2);
+            float windowHeight = (cardHeight * rows) + (spacing * Math.Max(0, rows - 1)) + (paddingY * 2);
+
+            if (enforceMinimumWindowSize)
+            {
+                windowWidth = Math.Max(HandMinimumWindowSize, windowWidth);
+                windowHeight = Math.Max(HandMinimumWindowSize, windowHeight);
+            }
+
+            return new HandLayoutMetrics(
+                scale,
+                baseCardSize.X,
+                baseCardSize.Y,
+                cardWidth,
+                cardHeight,
+                spacing,
+                handCount,
+                rows,
+                windowWidth,
+                windowHeight);
+        }
+
+        private int GetVisibleHandCount(IReadOnlyList<Card> hand)
+        {
+            return plugin.GameState.ActivePhase == GamePhase.BusRide
+                ? (plugin.GameState.BusRideCurrentCard != null ? 1 : 0)
+                : hand.Count;
+        }
+
+        private static Vector2 GetHandWindowPadding(float scale)
+        {
+            return new Vector2(HandRawPaddingX * scale, HandRawPaddingY * scale);
         }
 
         public override void PreDraw()
@@ -86,31 +162,12 @@ namespace FaeLightCards
             else if (isFirstDraw || shouldResetPosition || !isPositionCustom)
             {
                 var viewport = ImGui.GetMainViewport();
+                var metrics = CreateCurrentHandLayoutMetrics();
 
-                // Calculate size exactly as in Draw()
-                float scale = plugin.Configuration.HandScale;
-                var baseCardSize = GetHandBaseCardSize();
-                float baseCardW = baseCardSize.X;
-                float baseCardH = baseCardSize.Y;
-                float cardWidth = baseCardW * scale;
-                float cardHeight = baseCardH * scale;
-                float padX = 15f * scale;
-                float padY = 15f * scale;
-                float spacing = 10f * scale;
-                int handCount = HandCount;
-
-                int cols = Math.Min(handCount, 6);
-                if (cols == 0) cols = 1;
-                int rows = (handCount + 5) / 6;
-                if (rows == 0) rows = 1;
-
-                float windowW = (cardWidth * cols) + (spacing * Math.Max(0, cols - 1)) + (padX * 2);
-                float windowH = (cardHeight * rows) + (spacing * Math.Max(0, rows - 1)) + (padY * 2);
-
-                float defaultY = viewport.Pos.Y + (viewport.Size.Y - windowH) / 2f;
+                float defaultY = viewport.Pos.Y + (viewport.Size.Y - metrics.WindowHeight) / 2f;
                 float currentY = this.Position?.Y ?? defaultY;
                 this.Position = new Vector2(
-                    UiLayout.GetCenteredX(windowW),
+                    UiLayout.GetCenteredX(metrics.WindowWidth),
                     (isFirstDraw || shouldResetPosition) ? defaultY : currentY
                 );
                 this.PositionCondition = ImGuiCond.Always;
@@ -140,10 +197,8 @@ namespace FaeLightCards
 
             this.Flags = flags;
 
-            float stylePadX = 15f * plugin.Configuration.HandScale;
-            float stylePadY = 15f * plugin.Configuration.HandScale;
             pushedStyleVarCount = 0;
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(stylePadX, stylePadY));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, GetHandWindowPadding(plugin.Configuration.HandScale));
             pushedStyleVarCount++;
         }
 
@@ -151,27 +206,9 @@ namespace FaeLightCards
         {
             slotPositions.Clear();
             UpdatePendingHandScaleSave(ImGui.GetIO().DeltaTime);
-            float scale = plugin.Configuration.HandScale;
-
-            // Base dimensions - 3x larger than the previous 2x default (so 6x of texture size)
-            var baseCardSize = GetHandBaseCardSize();
-            float baseCardW = baseCardSize.X;
-            float baseCardH = baseCardSize.Y;
-
-            float cardWidth = baseCardW * scale;
-            float cardHeight = baseCardH * scale;
-
-            float rawPadX = 15f;
-            float rawPadY = 15f;
-            float rawSpacing = 10f;
-
-
-
-            float padX = rawPadX * scale;
-            float padY = rawPadY * scale;
-            float spacing = rawSpacing * scale;
-
-            int handCount = HandCount;
+            var metrics = CreateCurrentHandLayoutMetrics(enforceMinimumWindowSize: true);
+            float scale = metrics.Scale;
+            int handCount = metrics.HandCount;
 
             // 1. Smart Resize Detection
             var currentWindowSize = ImGui.GetWindowSize();
@@ -190,15 +227,15 @@ namespace FaeLightCards
             if (userResized && handCount > 0)
             {
                 // Available size for card content
-                float availW = currentWindowSize.X - (rawPadX * 2);
-                float availH = currentWindowSize.Y - (rawPadY * 2) - (plugin.Configuration.IsLocked ? 0f : 29f);
+                float availW = currentWindowSize.X - (HandRawPaddingX * 2);
+                float availH = currentWindowSize.Y - (HandRawPaddingY * 2) - (plugin.Configuration.IsLocked ? 0f : UnlockedResizeHandleHeight);
 
                 // Calculate scale to fit hand horizontally
-                float denomW = (handCount * baseCardW) + (Math.Max(0, handCount - 1) * rawSpacing);
+                float denomW = (handCount * metrics.BaseCardWidth) + (Math.Max(0, handCount - 1) * HandRawSpacing);
                 float scaleW = denomW > 0 ? (availW / denomW) : 1f;
 
                 // Calculate scale to fit hand vertically
-                float scaleH = availH / baseCardH;
+                float scaleH = availH / metrics.BaseCardHeight;
 
                 // Use the smaller scale to maintain card aspect ratio
                 float dynamicScale = Math.Min(scaleW, scaleH);
@@ -209,6 +246,7 @@ namespace FaeLightCards
                     plugin.Configuration.HandScale = dynamicScale;
                     ScheduleHandScaleSave();
 
+                    metrics = CreateHandLayoutMetrics(handCount, dynamicScale, enforceMinimumWindowSize: true);
                     scale = dynamicScale;
                 }
 
@@ -218,29 +256,17 @@ namespace FaeLightCards
             }
             else
             {
-                int cols = Math.Min(handCount, 6);
-                if (cols == 0) cols = 1;
-                int rows = (handCount + 5) / 6;
-                if (rows == 0) rows = 1;
-
-                float windowW = (cardWidth * cols) + (spacing * Math.Max(0, cols - 1)) + (padX * 2);
-                float windowH = (cardHeight * rows) + (spacing * Math.Max(0, rows - 1)) + (padY * 2);
-
-                // Enforce minimum size
-                windowW = Math.Max(50f, windowW);
-                windowH = Math.Max(50f, windowH);
-
                 // If the width changed after a custom drag, adjust position to preserve that custom center.
-                if (isPositionCustom && lastWindowWidth > 0f && Math.Abs(lastWindowWidth - windowW) > 0.01f)
+                if (isPositionCustom && lastWindowWidth > 0f && Math.Abs(lastWindowWidth - metrics.WindowWidth) > 0.01f)
                 {
-                    float shiftX = (lastWindowWidth - windowW) / 2f;
+                    float shiftX = (lastWindowWidth - metrics.WindowWidth) / 2f;
                     dragTargetPosition = ImGui.GetWindowPos() + new Vector2(shiftX, 0f);
                 }
 
-                ImGui.SetWindowSize(new Vector2(windowW, windowH));
-                lastSetWindowSize = new Vector2(windowW, windowH);
+                ImGui.SetWindowSize(metrics.WindowSize);
+                lastSetWindowSize = metrics.WindowSize;
                 LastSetWindowPosition = ImGui.GetWindowPos();
-                lastWindowWidth = windowW;
+                lastWindowWidth = metrics.WindowWidth;
             }
 
             if (plugin.Configuration.ShowDebugBounds)
@@ -343,39 +369,23 @@ namespace FaeLightCards
 
         private void DrawHandLayout(IReadOnlyList<Card> hand, float startYOffset, float opacity, bool trackSlotPositions = false)
         {
-            int handCount = hand.Count;
-            if (plugin.GameState.ActivePhase == GamePhase.BusRide)
-            {
-                handCount = plugin.GameState.BusRideCurrentCard != null ? 1 : 0;
-            }
-            float scale = plugin.Configuration.HandScale;
-            var baseCardSize = GetHandBaseCardSize();
-            float baseCardW = baseCardSize.X;
-            float baseCardH = baseCardSize.Y;
-            float cardWidth = baseCardW * scale;
-            float cardHeight = baseCardH * scale;
-            float rawPadX = 15f;
-            float rawPadY = 15f;
-            float rawSpacing = 10f;
-            float padX = rawPadX * scale;
-            float padY = rawPadY * scale;
-            float spacing = rawSpacing * scale;
+            var metrics = CreateHandLayoutMetrics(GetVisibleHandCount(hand));
+            int handCount = metrics.HandCount;
+            float scale = metrics.Scale;
+            float cardWidth = metrics.CardWidth;
+            float cardHeight = metrics.CardHeight;
+            float spacing = metrics.Spacing;
 
-            int cols = Math.Min(handCount, 6);
-            if (cols == 0) cols = 1;
-            int rows = (handCount + 5) / 6;
-            if (rows == 0) rows = 1;
-
-            float totalContentH = (cardHeight * rows) + (spacing * Math.Max(0, rows - 1));
+            float totalContentH = (cardHeight * metrics.Rows) + (spacing * Math.Max(0, metrics.Rows - 1));
             float totalStartY = ((lastSetWindowSize.Y - totalContentH) / 2f) + startYOffset;
 
             if (handCount > 0)
             {
                 for (int v = 0; v < handCount; v++)
                 {
-                    int rowIndex = v / 6;
-                    int colIndex = v % 6;
-                    int cardsInRow = Math.Min(6, handCount - rowIndex * 6);
+                    int rowIndex = v / HandMaxCardsPerRow;
+                    int colIndex = v % HandMaxCardsPerRow;
+                    int cardsInRow = Math.Min(HandMaxCardsPerRow, handCount - rowIndex * HandMaxCardsPerRow);
 
                     float rowContentW = (cardWidth * cardsInRow) + (spacing * Math.Max(0, cardsInRow - 1));
                     float startX = (lastWindowWidth - rowContentW) / 2f;
@@ -407,13 +417,13 @@ namespace FaeLightCards
             {
                 // Draw dotted placeholder card
                 var startPos = ImGui.GetCursorScreenPos();
-                ImGui.Dummy(new Vector2(cardWidth, cardHeight));
+                ImGui.Dummy(metrics.CardSize);
 
                 var color = plugin.Configuration.IsLocked
                     ? new Vector4(0.5f, 0.5f, 0.5f, 0.4f * opacity)
                     : new Vector4(0f, 0.8f, 1f, 0.8f * opacity); // Cyan when unlocked
 
-                plugin.UiState.HandSize = new Vector2(cardWidth, cardHeight);
+                plugin.UiState.HandSize = metrics.CardSize;
                 plugin.UiState.HandPosition = ImGui.GetWindowPos();
                 plugin.UiState.IsHandVisible = true;
                 DrawDashedRect(
@@ -443,30 +453,17 @@ namespace FaeLightCards
                 float textX = winPos.X - gap - textSize.X;
                 float textY = winPos.Y + (winSize.Y - textSize.Y) * 0.5f;
 
-                var drawList = ImGui.GetForegroundDrawList();
                 float outlineThickness = MathF.Max(1.0f, MathF.Round(3.5f * globalScale));
-                Vector2[] outlineOffsets = new Vector2[]
-                {
-                    new Vector2(-outlineThickness, -outlineThickness),
-                    new Vector2(0f, -outlineThickness),
-                    new Vector2(outlineThickness, -outlineThickness),
-                    new Vector2(-outlineThickness, 0f),
-                    new Vector2(outlineThickness, 0f),
-                    new Vector2(-outlineThickness, outlineThickness),
-                    new Vector2(0f, outlineThickness),
-                    new Vector2(outlineThickness, outlineThickness)
-                };
-
-                uint outlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, 0.8f));
-                uint textColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.98f, 0.75f, 0.14f, 1.0f));
 
                 using (plugin.LargeFont.Push())
                 {
-                    foreach (var offset in outlineOffsets)
-                    {
-                        drawList.AddText(new Vector2(textX, textY) + offset, outlineColor, progressText);
-                    }
-                    drawList.AddText(new Vector2(textX, textY), textColor, progressText);
+                    UiLayout.DrawOutlinedText(
+                        ImGui.GetForegroundDrawList(),
+                        new Vector2(textX, textY),
+                        progressText,
+                        UITheme.GoldText,
+                        new Vector4(0f, 0f, 0f, 0.8f),
+                        outlineThickness);
                 }
             }
 
@@ -511,19 +508,7 @@ namespace FaeLightCards
                     textY += shiftY;
                 }
 
-                var drawList = ImGui.GetForegroundDrawList();
                 float outlineThickness = MathF.Max(1.0f, MathF.Round(3.5f * animScale * globalScale));
-                Vector2[] outlineOffsets = new Vector2[]
-                {
-                    new Vector2(-outlineThickness, -outlineThickness),
-                    new Vector2(0f, -outlineThickness),
-                    new Vector2(outlineThickness, -outlineThickness),
-                    new Vector2(-outlineThickness, 0f),
-                    new Vector2(outlineThickness, 0f),
-                    new Vector2(-outlineThickness, outlineThickness),
-                    new Vector2(0f, outlineThickness),
-                    new Vector2(outlineThickness, outlineThickness)
-                };
 
                 float rightSideMessageOpacity = 1.0f;
                 if (plugin.GameState.ActiveMode == GameMode.Dealer && plugin.GameState.ActivePhase == GamePhase.Accumulation)
@@ -536,20 +521,16 @@ namespace FaeLightCards
 
                 if (rightSideMessageOpacity > 0f)
                 {
-                    uint outlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, 0.8f * rightSideMessageOpacity));
-                    uint textColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 1f * rightSideMessageOpacity));
-
                     using (plugin.LargeFont.Push())
                     {
                         ImGui.SetWindowFontScale(animScale);
-                        if (outlineThickness > 0.1f)
-                        {
-                            foreach (var offset in outlineOffsets)
-                            {
-                                drawList.AddText(new Vector2(textX, textY) + offset, outlineColor, msg);
-                            }
-                        }
-                        drawList.AddText(new Vector2(textX, textY), textColor, msg);
+                        UiLayout.DrawOutlinedText(
+                            ImGui.GetForegroundDrawList(),
+                            new Vector2(textX, textY),
+                            msg,
+                            new Vector4(1f, 1f, 1f, rightSideMessageOpacity),
+                            new Vector4(0f, 0f, 0f, 0.8f * rightSideMessageOpacity),
+                            outlineThickness);
                         ImGui.SetWindowFontScale(1.0f);
                     }
                 }

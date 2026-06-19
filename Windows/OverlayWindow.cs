@@ -112,31 +112,19 @@ namespace FaeLightCards
             float centerY = handBottom + gap + targetTextSize.Y * 0.5f;
             float y = centerY - textSize.Y * 0.5f;
 
-            float outlineThickness = MathF.Max(1.0f, MathF.Round(3.5f * globalScale * scale));
-            Vector2[] offsets = new Vector2[]
-            {
-                new Vector2(-outlineThickness, -outlineThickness),
-                new Vector2(0f, -outlineThickness),
-                new Vector2(outlineThickness, -outlineThickness),
-                new Vector2(-outlineThickness, 0f),
-                new Vector2(outlineThickness, 0f),
-                new Vector2(-outlineThickness, outlineThickness),
-                new Vector2(0f, outlineThickness),
-                new Vector2(outlineThickness, outlineThickness)
-            };
-
             var drawList = ImGui.GetForegroundDrawList();
-            uint outlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, 0.8f * alpha));
-            uint textColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, alpha));
+            float outlineThickness = MathF.Max(1.0f, MathF.Round(3.5f * globalScale * scale));
 
             using (plugin.LargeFont.Push())
             {
                 ImGui.SetWindowFontScale(scale);
-                foreach (var offset in offsets)
-                {
-                    drawList.AddText(new Vector2(x, y) + offset, outlineColor, plugin.UiState.SecondaryMessage);
-                }
-                drawList.AddText(new Vector2(x, y), textColor, plugin.UiState.SecondaryMessage);
+                UiLayout.DrawOutlinedText(
+                    drawList,
+                    new Vector2(x, y),
+                    plugin.UiState.SecondaryMessage,
+                    new Vector4(1f, 1f, 1f, alpha),
+                    new Vector4(0f, 0f, 0f, 0.8f * alpha),
+                    outlineThickness);
             }
         }
 
@@ -173,20 +161,14 @@ namespace FaeLightCards
                 textLocalPos.Y -= 2.0f * globalScale;
 
                 float pulse = 0.8f + MathF.Sin((float)ImGui.GetTime() * 8f) * 0.2f;
-                uint textColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.98f, 0.75f, 0.14f, pulse));
-                uint outlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.0f, 0.0f, 0.0f, pulse * 0.8f));
-
                 float thickness = MathF.Max(1.0f, MathF.Round(1.5f * globalScale));
-                for (float dx = -thickness; dx <= thickness; dx += thickness)
-                {
-                    for (float dy = -thickness; dy <= thickness; dy += thickness)
-                    {
-                        if (dx == 0 && dy == 0) continue;
-                        drawList.AddText(textLocalPos + new Vector2(dx, dy), outlineColor, text);
-                    }
-                }
-
-                drawList.AddText(textLocalPos, textColor, text);
+                UiLayout.DrawOutlinedText(
+                    drawList,
+                    textLocalPos,
+                    text,
+                    UITheme.WithOpacity(UITheme.GoldText, pulse),
+                    new Vector4(0.0f, 0.0f, 0.0f, pulse * 0.8f),
+                    thickness);
                 ImGui.SetWindowFontScale(1.0f);
             }
         }
@@ -522,28 +504,13 @@ namespace FaeLightCards
 
                     var screenPos = new Vector2(MathF.Round(posX), MathF.Round(clampedY));
                     float outlineThickness = MathF.Max(1.0f, MathF.Round(3.5f * scale * globalScale));
-                    uint outlineColorU32 = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, opacity));
-                    uint textColorU32 = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, opacity));
-
-                    if (outlineThickness > 0.1f)
-                    {
-                        Vector2[] offsets = new Vector2[]
-                        {
-                            new Vector2(-outlineThickness, -outlineThickness),
-                            new Vector2(0f, -outlineThickness),
-                            new Vector2(outlineThickness, -outlineThickness),
-                            new Vector2(-outlineThickness, 0f),
-                            new Vector2(outlineThickness, 0f),
-                            new Vector2(-outlineThickness, outlineThickness),
-                            new Vector2(0f, outlineThickness),
-                            new Vector2(outlineThickness, outlineThickness)
-                        };
-                        foreach (var offset in offsets)
-                        {
-                            drawList.AddText(screenPos + offset, outlineColorU32, msg.Text);
-                        }
-                    }
-                    drawList.AddText(screenPos, textColorU32, msg.Text);
+                    UiLayout.DrawOutlinedText(
+                        drawList,
+                        screenPos,
+                        msg.Text,
+                        new Vector4(1f, 1f, 1f, opacity),
+                        new Vector4(0f, 0f, 0f, opacity),
+                        outlineThickness);
                 }
             }
         }

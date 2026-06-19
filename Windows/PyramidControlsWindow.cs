@@ -102,9 +102,7 @@ namespace FaeLightCards
 
                 bool isEnabled;
                 string label;
-                Vector4 fill;
-                Vector4 outline;
-                Vector4 textCol;
+                ButtonTheme buttonTheme;
 
                 bool showAdvance = plugin.RulesEngine.IsActiveRowFullyFlipped() && plugin.RulesEngine.HasNextRow();
                 if (isAutoPlayerDealer)
@@ -112,17 +110,8 @@ namespace FaeLightCards
                     bool isComplete = plugin.GameState.CurrentFlipIndex >= 15;
                     isEnabled = !isComplete;
                     label = isComplete ? "Done" : plugin.TurnManager.PyramidDealerPaused ? "Resume" : "Pause";
-                    fill = isEnabled
-                        ? plugin.TurnManager.PyramidDealerPaused
-                            ? new Vector4(0.2f, 0.5f, 0.3f, 1.0f)
-                            : new Vector4(0.45f, 0.32f, 0.12f, 1.0f)
-                        : new Vector4(0.2f, 0.2f, 0.2f, 0.4f);
-                    outline = isEnabled
-                        ? plugin.TurnManager.PyramidDealerPaused
-                            ? new Vector4(0.1f, 0.3f, 0.15f, 1.0f)
-                            : new Vector4(0.3f, 0.2f, 0.08f, 1.0f)
-                        : new Vector4(0.4f, 0.4f, 0.4f, 0.4f);
-                    textCol = isEnabled ? new Vector4(1f, 1f, 1f, 1.0f) : new Vector4(0.6f, 0.6f, 0.6f, 0.4f);
+                    ButtonTheme enabledTheme = plugin.TurnManager.PyramidDealerPaused ? UITheme.Primary : UITheme.Pause;
+                    buttonTheme = UITheme.ForEnabled(isEnabled, enabledTheme);
                 }
                 else
                 {
@@ -131,9 +120,8 @@ namespace FaeLightCards
                     // Visual-only overlays should not block this, but unresolved player matches should.
                     isEnabled = plugin.GameState.CurrentFlipIndex < 15 && !hasPendingMatches && plugin.TurnManager.DealerPhaseTransitionTimer <= 0f;
                     label = showAdvance ? "Next Row" : "Flip Card";
-                    fill = isEnabled ? (showAdvance ? new Vector4(0.2f, 0.4f, 0.6f, 1.0f) : new Vector4(0.2f, 0.5f, 0.3f, 1.0f)) : new Vector4(0.2f, 0.2f, 0.2f, 0.4f);
-                    outline = isEnabled ? (showAdvance ? new Vector4(0.1f, 0.2f, 0.3f, 1.0f) : new Vector4(0.1f, 0.3f, 0.15f, 1.0f)) : new Vector4(0.4f, 0.4f, 0.4f, 0.4f);
-                    textCol = isEnabled ? new Vector4(1f, 1f, 1f, 1.0f) : new Vector4(0.6f, 0.6f, 0.6f, 0.4f);
+                    ButtonTheme enabledTheme = showAdvance ? UITheme.Secondary : UITheme.Primary;
+                    buttonTheme = UITheme.ForEnabled(isEnabled, enabledTheme);
                 }
 
                 // Draw Row / Multiplier Text Centered
@@ -146,7 +134,7 @@ namespace FaeLightCards
                 float buttonH = 34f * scale;
                 ImGui.SetCursorPos(new Vector2((WindowSize.X - buttonW) / 2f, 40f * scale));
 
-                actionClicked = UiLayout.DrawCustomChoiceButton(label, new Vector2(buttonW, buttonH), fill, outline, textCol, outline, scale);
+                actionClicked = UiLayout.DrawCustomChoiceButton(label, new Vector2(buttonW, buttonH), buttonTheme, 1.0f, scale);
                 actionButtonActive = ImGui.IsItemActive();
                 runAction = () =>
                 {
