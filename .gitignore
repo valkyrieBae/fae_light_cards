@@ -15,9 +15,11 @@ references/
 AGENTS.md
 AGENTS.local.md
 ARCHITECTURE.md
+*.local.md
 publish-test-repo.sh
 publish-test-repo.local.sh
-*.local.md
 
-# Generated release changelog archives
-docs/changelogs/published/*.md
+# Maintainer-only notes
+PUBLISHING.md
+dalamud_plugin_guidelines.md
+docs/
