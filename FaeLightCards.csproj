@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <AssemblyName>FaeLightCards</AssemblyName>
+    <RootNamespace>FaeLightCards</RootNamespace>
+    <AssemblyVersion>1.0.0.11</AssemblyVersion>
+    <Description>A tabletop card game plugin for FFXIV.</Description>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>net10.0</TargetFramework>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <Authors>Valkyrie Bae</Authors>
+    <DalamudApiLevel>15</DalamudApiLevel>
+    <DefaultItemExcludes>$(DefaultItemExcludes);references\**</DefaultItemExcludes>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);FAELIGHTCARDS_DEV_TOOLS</DefineConstants>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Content Include="FaeLightCards.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="sounds/*.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="decks/**/*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Update="DalamudPackager" Version="15.0.0" />
+  </ItemGroup>
+</Project>

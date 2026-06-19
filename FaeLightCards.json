@@ -1,0 +1,15 @@
+{
+  "Author": "Valkyrie Bae",
+  "Name": "Fae Light Cards",
+  "Punchline": "A tabletop card game plugin for FFXIV.",
+  "Description": "Play a tabletop card game directly in FFXIV.",
+  "InternalName": "FaeLightCards",
+  "AssemblyVersion": "1.0.0.11",
+  "Tags": [
+    "game",
+    "cards",
+    "UI"
+  ],
+  "Changelog": "Version 1.0.0.11\n\n- Rebrand plugin metadata for Fae Light Cards.\n",
+  "LastUpdate": 1781764619
+}

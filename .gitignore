@@ -1,0 +1,22 @@
+# Build outputs
+bin/
+obj/
+
+# References
+references/
+
+# IDE files
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local agent notes and helper scripts
+AGENTS.md
+AGENTS.local.md
+publish-test-repo.sh
+publish-test-repo.local.sh
+*.local.md
+
+# Generated release changelog archives
+docs/changelogs/published/*.md
