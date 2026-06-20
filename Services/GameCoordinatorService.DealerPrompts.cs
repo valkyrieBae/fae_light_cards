@@ -35,13 +35,14 @@ namespace FaeLightCards
                 return;
             }
 
-            if (!IsLocalOnlyDealer())
+            if (!IsDealerPhasePromptAllowed())
             {
                 return;
             }
 
             plugin.UiState.DealerPhaseChangePrompt = promptState;
             plugin.UiState.DealerPhaseChangeEndGameConfirmationPending = false;
+            plugin.UiState.DealerPhaseChangeRestartConfirmationPending = false;
             plugin.UiState.BusRideEndConfirmationPending = false;
             GrowPromptIfHidden();
         }
@@ -49,6 +50,7 @@ namespace FaeLightCards
         {
             plugin.UiState.DealerPhaseChangePrompt = UIState.DealerPhaseChangePromptState.None;
             plugin.UiState.DealerPhaseChangeEndGameConfirmationPending = false;
+            plugin.UiState.DealerPhaseChangeRestartConfirmationPending = false;
         }
         public void BeginDealerBusRiderSelection()
         {
@@ -89,6 +91,13 @@ namespace FaeLightCards
                    && plugin.GameState.ActiveMode == GameMode.Dealer
                    && plugin.IsLocalDealer;
         }
+        private bool IsDealerPhasePromptAllowed()
+        {
+            return plugin.GameState.ActiveMode == GameMode.Dealer
+                   && plugin.IsLocalDealer
+                   && (plugin.AppState.ActiveConnectionMode == ConnectionMode.LocalOnly
+                       || plugin.AppState.ActiveConnectionMode == ConnectionMode.Networked);
+        }
         private void ValidateDealerPhaseChangePrompt()
         {
             var promptState = plugin.UiState.DealerPhaseChangePrompt;
@@ -107,7 +116,7 @@ namespace FaeLightCards
                 _ => false
             };
 
-            if (!IsLocalOnlyDealer() || !isValidPhase)
+            if (!IsDealerPhasePromptAllowed() || !isValidPhase)
             {
                 ClearDealerPhaseChangePrompt();
             }
@@ -119,7 +128,7 @@ namespace FaeLightCards
                 return;
             }
 
-            if (IsLocalOnlyDealer()
+            if (IsDealerPhasePromptAllowed()
                 && plugin.GameState.ActivePhase == GamePhase.Accumulation
                 && plugin.TurnManager.DealerNeedNextPlayer
                 && AreAllNonDealersFinishedAccumulation())

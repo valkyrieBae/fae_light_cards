@@ -86,6 +86,8 @@ namespace FaeLightCards
         public bool BusRideEndConfirmationPending { get; set; } = false;
         public DealerPhaseChangePromptState DealerPhaseChangePrompt { get; set; } = DealerPhaseChangePromptState.None;
         public bool DealerPhaseChangeEndGameConfirmationPending { get; set; } = false;
+        public bool DealerPhaseChangeRestartConfirmationPending { get; set; } = false;
+        public bool NetworkDealerActionPending { get; set; } = false;
 
         public string? SecondaryMessage { get; set; }
         public float SecondaryMessageAnimTime { get; set; } = -1f;

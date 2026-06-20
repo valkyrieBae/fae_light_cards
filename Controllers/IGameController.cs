@@ -15,6 +15,7 @@ namespace FaeLightCards
         void GivePendingDrinkToPlayer(string targetPlayerName);
         void HandleDealerDealBusCard();
         void EndGame();
+        void RestartGame();
         void ChooseBusRider(string playerName);
         void AddNpcPlayer();
         void DebugSkipToPyramid();

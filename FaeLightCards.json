@@ -4,12 +4,12 @@
   "Punchline": "A tabletop card game plugin for FFXIV.",
   "Description": "Play a tabletop card game directly in FFXIV.",
   "InternalName": "FaeLightCards",
-  "AssemblyVersion": "1.0.0.11",
+  "AssemblyVersion": "1.0.0.12",
   "Tags": [
     "game",
     "cards",
     "UI"
   ],
-  "Changelog": "Version 1.0.0.11\n\n- Rebrand plugin metadata for Fae Light Cards.\n",
-  "LastUpdate": 1781764619
+  "Changelog": "Version 1.0.0.12\n\n- Add confirmed dealer restart option.\n- Center three-button phase prompts.\n- Guard network dealer controls against stale duplicate actions.\n",
+  "LastUpdate": 1781927138
 }

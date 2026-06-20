@@ -88,10 +88,12 @@ namespace FaeLightCards
         {
             if (plugin.TurnManager.DealerNeedNextPlayer)
             {
+                MarkNetworkDealerActionPending();
                 plugin.GameController.HandleDealerAdvanceNextPlayer();
             }
             else if (plugin.TurnManager.DealerNpcHasGuessed && plugin.TurnManager.DealerTransitionTimer <= 0f)
             {
+                MarkNetworkDealerActionPending();
                 plugin.GameController.HandleDealerDeal();
             }
         }
@@ -104,6 +106,7 @@ namespace FaeLightCards
                 if (optionIndex == 0 && canUseBusRideControls)
                 {
                     plugin.UiState.BusRideEndConfirmationPending = false;
+                    MarkNetworkDealerActionPending();
                     plugin.GameController.EndGame();
                 }
                 else if (optionIndex == 1 && canUseBusRideControls)
@@ -115,6 +118,7 @@ namespace FaeLightCards
             {
                 if (optionIndex == 0)
                 {
+                    MarkNetworkDealerActionPending();
                     plugin.GameController.HandleDealerDealBusCard();
                 }
                 else if (optionIndex == 1)
@@ -137,6 +141,7 @@ namespace FaeLightCards
                 if (optionIndex == 0)
                 {
                     plugin.GameCoordinator.ClearDealerPhaseChangePrompt();
+                    MarkNetworkDealerActionPending();
                     plugin.GameController.EndGame();
                 }
                 else if (optionIndex == 1)
@@ -146,19 +151,57 @@ namespace FaeLightCards
                 return;
             }
 
-            if (optionIndex == 1)
+            if (plugin.UiState.DealerPhaseChangeRestartConfirmationPending)
+            {
+                if (optionIndex == 0)
+                {
+                    plugin.GameCoordinator.ClearDealerPhaseChangePrompt();
+                    MarkNetworkDealerActionPending();
+                    plugin.GameController.RestartGame();
+                }
+                else if (optionIndex == 1)
+                {
+                    plugin.UiState.DealerPhaseChangeRestartConfirmationPending = false;
+                }
+                return;
+            }
+
+            if (optionIndex == 2)
             {
                 plugin.UiState.DealerPhaseChangeEndGameConfirmationPending = true;
+                plugin.UiState.DealerPhaseChangeRestartConfirmationPending = false;
+                return;
+            }
+
+            if (optionIndex == 1)
+            {
+                plugin.UiState.DealerPhaseChangeRestartConfirmationPending = true;
+                plugin.UiState.DealerPhaseChangeEndGameConfirmationPending = false;
+                return;
+            }
+
+            if (optionIndex != 0)
+            {
                 return;
             }
 
             if (promptState == UIState.DealerPhaseChangePromptState.Phase1Complete)
             {
+                MarkNetworkDealerActionPending();
                 plugin.GameController.HandleDealerAdvanceNextPlayer();
             }
             else if (promptState == UIState.DealerPhaseChangePromptState.Phase2Complete)
             {
                 plugin.GameCoordinator.BeginDealerBusRiderSelection();
+            }
+        }
+
+        private void MarkNetworkDealerActionPending()
+        {
+            if (plugin.AppState.ActiveConnectionMode == ConnectionMode.Networked
+                && plugin.GameController is NetworkController)
+            {
+                plugin.UiState.NetworkDealerActionPending = true;
             }
         }
 

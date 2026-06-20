@@ -252,6 +252,7 @@ namespace FaeLightCards
             string failureMessage = CleanConnectionFailureMessage(message);
             EnqueueMainThreadAction(() =>
             {
+                plugin.UiState.NetworkDealerActionPending = false;
                 plugin.AppState.ConnectionFailureMessage = failureMessage;
                 if (!string.IsNullOrWhiteSpace(failureMessage))
                 {

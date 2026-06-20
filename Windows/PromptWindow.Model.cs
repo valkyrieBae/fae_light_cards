@@ -25,6 +25,7 @@ namespace FaeLightCards
             bool isLocalDealer = plugin.IsLocalDealer;
             bool isLockedOut = plugin.IsAnimationPlaying
                                || plugin.GameState.HasPendingDrinkTarget
+                               || plugin.UiState.NetworkDealerActionPending
                                || plugin.UiState.PromptState != UIState.PromptAnimState.Normal;
 
             if (plugin.AppState.ChosenGameMode == GameMode.Undecided)
@@ -162,6 +163,15 @@ namespace FaeLightCards
                 };
             }
 
+            if (plugin.UiState.DealerPhaseChangeRestartConfirmationPending)
+            {
+                return new List<GuessOption>
+                {
+                    new("Yes", UITheme.Secondary),
+                    new("No", UITheme.Neutral)
+                };
+            }
+
             string primaryLabel = plugin.UiState.DealerPhaseChangePrompt == UIState.DealerPhaseChangePromptState.Phase1Complete
                 ? "Build Pyramid"
                 : "Ride Bus";
@@ -169,6 +179,7 @@ namespace FaeLightCards
             return new List<GuessOption>
             {
                 new(primaryLabel, UITheme.Primary),
+                new("Restart", UITheme.Secondary),
                 new("End Game", UITheme.Danger)
             };
         }
@@ -204,6 +215,11 @@ namespace FaeLightCards
             if (plugin.UiState.DealerPhaseChangeEndGameConfirmationPending)
             {
                 return "End Game?";
+            }
+
+            if (plugin.UiState.DealerPhaseChangeRestartConfirmationPending)
+            {
+                return "Restart Game?";
             }
 
             return plugin.UiState.DealerPhaseChangePrompt switch

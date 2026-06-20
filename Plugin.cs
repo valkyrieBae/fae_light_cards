@@ -245,15 +245,16 @@ namespace FaeLightCards
             bool isLocalDealer = IsLocalDealer;
             bool isLocalPlayerAutoDealer = GameState.ActiveMode == GameMode.Player && AppState.ActiveConnectionMode == ConnectionMode.LocalOnly;
             bool isLocalDealerTieChoice = GameState.ActivePhase == GamePhase.TieChoice && isLocalDealer;
-            bool hasLocalDealerPhaseChangePrompt = AppState.ActiveConnectionMode == ConnectionMode.LocalOnly
-                                                   && isLocalDealer
-                                                   && UiState.DealerPhaseChangePrompt != UIState.DealerPhaseChangePromptState.None;
+            bool hasDealerPhaseChangePrompt = (AppState.ActiveConnectionMode == ConnectionMode.LocalOnly
+                                               || AppState.ActiveConnectionMode == ConnectionMode.Networked)
+                                              && isLocalDealer
+                                              && UiState.DealerPhaseChangePrompt != UIState.DealerPhaseChangePromptState.None;
             bool shouldShowPlayers = GameState.ActiveMode != GameMode.Undecided &&
                                      (GameState.ActivePhase == GamePhase.Accumulation || GameState.ActivePhase == GamePhase.Pyramid || GameState.ActivePhase == GamePhase.TieChoice || GameState.ActivePhase == GamePhase.BusRide);
 
             PromptWindow.IsOpen = (GameState.ActiveMode == GameMode.Undecided ||
                                    (GameState.ActiveMode == GameMode.Dealer && isLocalDealer && GameState.ActivePhase != GamePhase.Pyramid && !isLocalDealerTieChoice && !GameState.HasPendingDrinkTarget) ||
-                                   hasLocalDealerPhaseChangePrompt ||
+                                   hasDealerPhaseChangePrompt ||
                                    RulesEngine.GetCurrentStage() != null ||
                                    UiState.PromptState != UIState.PromptAnimState.Normal) &&
                                   !isLocalDealerTieChoice &&

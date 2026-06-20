@@ -72,6 +72,10 @@ namespace FaeLightCards
         {
             QueueAction("ResetGame");
         }
+        public void RestartGame()
+        {
+            QueueAction("ResetGame");
+        }
         public void JoinRoom(string roomId)
         {
             string normalizedRoomId = roomId.ToUpperInvariant().Trim();

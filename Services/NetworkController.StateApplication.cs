@@ -80,8 +80,10 @@ namespace FaeLightCards
                 {
                     var dataElement = root.GetProperty("data");
                     string errorMsg = dataElement.GetProperty("message").GetString() ?? "Unknown error";
+                    plugin.UiState.NetworkDealerActionPending = false;
                     plugin.EventBus.PublishSecondaryMessage($"Error: {errorMsg}");
                     Plugin.Log.Warning($"Server returned error: {errorMsg}");
+                    QueueAction("RequestResync");
                 }
             }
             catch (Exception e)
@@ -116,6 +118,7 @@ namespace FaeLightCards
 
         private void ApplyState(GameStateDto dto)
         {
+            plugin.UiState.NetworkDealerActionPending = false;
             UpdateActionState(dto);
 
             var oldState = plugin.GameState;

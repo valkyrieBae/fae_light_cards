@@ -6,6 +6,14 @@ namespace FaeLightCards
 {
     public partial class PromptWindow
     {
+        private readonly record struct PromptChoiceLayout(
+            float ButtonWidth,
+            float ButtonHeight,
+            float Spacing,
+            float StartX,
+            float ButtonY,
+            float FontScale);
+
         private void RenderPromptScreen(PromptRenderModel model, float scale, Vector2 expectedWindowSize)
         {
             switch (model.ScreenKind)
@@ -41,12 +49,14 @@ namespace FaeLightCards
 
         private void DrawChoiceButtons(PromptRenderModel model, Vector2 textSize, int numOptions, float opacity, float scale, Vector2 expectedWindowSize)
         {
-            float buttonW = (numOptions == 4 ? 52f : 130f) * scale;
-            float buttonH = 46f * scale;
-            float spacing = (numOptions == 4 ? 12f : 16f) * scale;
-            float totalW = numOptions * buttonW + (numOptions - 1) * spacing;
-            float startX = (expectedWindowSize.X - totalW) / 2f;
-            float buttonY = textSize.Y + 15f * scale;
+            if (numOptions <= 0)
+            {
+                return;
+            }
+
+            var layout = CreatePromptChoiceLayout(numOptions, textSize, scale, expectedWindowSize);
+            float originalFontScale = plugin.UiState.PromptScale;
+            ImGui.SetWindowFontScale(originalFontScale * layout.FontScale);
 
             for (int i = 0; i < numOptions; i++)
             {
@@ -57,10 +67,10 @@ namespace FaeLightCards
                     currentButtonScale = 1.0f - 0.15f * MathF.Sin(t * MathF.PI);
                 }
 
-                Vector2 normalSize = new(buttonW, buttonH);
+                Vector2 normalSize = new(layout.ButtonWidth, layout.ButtonHeight);
                 Vector2 actualSize = normalSize * currentButtonScale;
-                float buttonX = startX + i * (buttonW + spacing);
-                Vector2 normalPos = new(buttonX, buttonY);
+                float buttonX = MathF.Round(layout.StartX + i * (layout.ButtonWidth + layout.Spacing));
+                Vector2 normalPos = new(buttonX, layout.ButtonY);
 
                 if (currentButtonScale < 1.0f)
                 {
@@ -86,6 +96,34 @@ namespace FaeLightCards
                     HandleChoiceClick(i);
                 }
             }
+
+            ImGui.SetWindowFontScale(originalFontScale);
+        }
+
+        private static PromptChoiceLayout CreatePromptChoiceLayout(int numOptions, Vector2 textSize, float scale, Vector2 expectedWindowSize)
+        {
+            float buttonW = numOptions switch
+            {
+                3 => 90f,
+                4 => 52f,
+                _ => 130f
+            };
+            float spacing = numOptions switch
+            {
+                3 => 6f,
+                4 => 12f,
+                _ => 16f
+            };
+            float fontScale = numOptions == 3 ? 0.70f : 1.0f;
+
+            buttonW *= scale;
+            float buttonH = 46f * scale;
+            spacing *= scale;
+            float totalW = numOptions * buttonW + (numOptions - 1) * spacing;
+            float startX = MathF.Round((expectedWindowSize.X - totalW) / 2f);
+            float buttonY = MathF.Round(textSize.Y + 15f * scale);
+
+            return new PromptChoiceLayout(buttonW, buttonH, spacing, startX, buttonY, fontScale);
         }
 
         private void DrawEnterRoomCodeScreen(float scale, Vector2 windowSize)

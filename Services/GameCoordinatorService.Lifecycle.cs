@@ -37,6 +37,7 @@ namespace FaeLightCards
             plugin.UiState.BusRidePromptGrowTimer = -1f;
             plugin.UiState.BusRideVictoryResetTimer = -1f;
             plugin.UiState.BusRideEndConfirmationPending = false;
+            plugin.UiState.NetworkDealerActionPending = false;
             ClearDealerPhaseChangePrompt();
             plugin.UiState.SecondaryMessage = null;
             plugin.UiState.SecondaryMessageAnimTime = -1f;
@@ -62,9 +63,18 @@ namespace FaeLightCards
             plugin.TurnManager.DealerPhaseTransitionTimer = 0f;
             plugin.TurnManager.DealerNextPhasePending = null;
         }
+        public void RestartLocalDealerGame()
+        {
+            ResetGame();
+            plugin.AppState.ChosenGameMode = GameMode.Dealer;
+            plugin.AppState.ActiveConnectionMode = ConnectionMode.LocalOnly;
+            SetGameMode(GameMode.Dealer);
+            plugin.PromptWindow.ResetPromptState();
+        }
         public void SetGameMode(GameMode mode)
         {
             plugin.UiState.BusRideEndConfirmationPending = false;
+            plugin.UiState.NetworkDealerActionPending = false;
             ClearDealerPhaseChangePrompt();
             plugin.GameState.ActiveMode = mode;
             if (mode == GameMode.Dealer)

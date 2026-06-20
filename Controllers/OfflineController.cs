@@ -200,6 +200,11 @@ namespace FaeLightCards
             plugin.ResetGame();
         }
 
+        public void RestartGame()
+        {
+            plugin.GameCoordinator.RestartLocalDealerGame();
+        }
+
         public void DebugSkipToPyramid()
         {
             // Handled locally by Plugin.cs when in debug mode
