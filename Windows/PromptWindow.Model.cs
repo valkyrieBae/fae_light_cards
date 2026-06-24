@@ -23,10 +23,14 @@ namespace FaeLightCards
         private PromptRenderModel BuildRenderModel()
         {
             bool isLocalDealer = plugin.IsLocalDealer;
-            bool isLockedOut = plugin.IsAnimationPlaying
-                               || plugin.GameState.HasPendingDrinkTarget
+            bool isDealerPhaseChangePrompt = plugin.GameState.ActiveMode == GameMode.Dealer
+                                             && isLocalDealer
+                                             && plugin.UiState.DealerPhaseChangePrompt != UIState.DealerPhaseChangePromptState.None;
+            bool isPromptTransitioning = plugin.UiState.PromptState != UIState.PromptAnimState.Normal;
+            bool isLockedOut = plugin.GameState.HasPendingDrinkTarget
+                               || isPromptTransitioning
                                || plugin.UiState.NetworkDealerActionPending
-                               || plugin.UiState.PromptState != UIState.PromptAnimState.Normal;
+                               || (!isDealerPhaseChangePrompt && plugin.IsAnimationPlaying);
 
             if (plugin.AppState.ChosenGameMode == GameMode.Undecided)
             {
